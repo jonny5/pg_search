@@ -839,6 +839,25 @@ describe "an Active Record model which includes PgSearch" do
       end
     end
 
+    context "when websearch option" do
+      before do
+        ModelWithPgSearch.pg_search_scope :search_title_with_websearch,
+                                          against: :title,
+                                          using: {
+                                            tsearch: { websearch: true }
+                                          }
+      end
+
+      it "returns all results containing any word in their title" do
+        ModelWithPgSearch.create!(title: "one two")
+        ModelWithPgSearch.create!(title: "three four")
+
+        results = ModelWithPgSearch.search_title_with_websearch("one two OR three four")
+
+        expect(results.map(&:title)).to eq(["one two", "three four"])
+      end
+    end
+
     context "when using dmetaphone" do
       before do
         ModelWithPgSearch.pg_search_scope :with_dmetaphones,

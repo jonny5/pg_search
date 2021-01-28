@@ -7,7 +7,7 @@ module PgSearch
   module Features
     class TSearch < Feature # rubocop:disable Metrics/ClassLength
       def self.valid_options
-        super + %i[dictionary prefix negation any_word normalization tsvector_column highlight]
+        super + %i[websearch dictionary prefix negation any_word normalization tsvector_column highlight]
       end
 
       def conditions
@@ -97,7 +97,7 @@ module PgSearch
 
       DISALLOWED_TSQUERY_CHARACTERS = /['?\\:‘’]/.freeze
 
-      def tsquery_for_term(unsanitized_term)
+      def tsquery_for_term(unsanitized_term, method: 'to_tsquery')
         if options[:negation] && unsanitized_term.start_with?("!")
           unsanitized_term[0] = ''
           negated = true
@@ -109,7 +109,7 @@ module PgSearch
 
         tsquery = tsquery_expression(term_sql, negated: negated, prefix: options[:prefix])
 
-        Arel::Nodes::NamedFunction.new("to_tsquery", [dictionary, tsquery]).to_sql
+        Arel::Nodes::NamedFunction.new(method, [dictionary, tsquery]).to_sql
       end
 
       # After this, the SQL expression evaluates to a string containing the term surrounded by single-quotes.
@@ -131,6 +131,8 @@ module PgSearch
 
       def tsquery
         return "''" if query.blank?
+
+        return tsquery_for_term(query, method: 'websearch_to_tsquery') if options[:websearch]
 
         query_terms = query.split.compact
         tsquery_terms = query_terms.map { |term| tsquery_for_term(term) }
